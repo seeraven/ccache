@@ -103,6 +103,18 @@ expect_equal_files() {
     fi
 }
 
+expect_different_files() {
+    if [ ! -e "$1" ]; then
+        test_failed "compare_files: $1 missing"
+    fi
+    if [ ! -e "$2" ]; then
+        test_failed "compare_files: $2 missing"
+    fi
+    if cmp -s "$1" "$2"; then
+        test_failed "compare_files:: $1 and $2 are identical"
+    fi
+}
+
 expect_equal_object_files() {
     if $HOST_OS_LINUX && $COMPILER_TYPE_CLANG; then
         if ! which eu-elfcmp >/dev/null 2>&1; then
@@ -258,6 +270,25 @@ base_tests() {
 
     $UNCACHED_COMPILE -c -o reference_test1.o test1.c
     expect_equal_object_files reference_test1.o foo.o
+
+    # -------------------------------------------------------------------------
+    TEST "Output option without space"
+
+    $CCACHE_COMPILE -c test1.c
+    expect_stat 'cache hit (preprocessed)' 0
+    expect_stat 'cache miss' 1
+
+    $CCACHE_COMPILE -c test1.c -odir
+    expect_stat 'cache hit (preprocessed)' 1
+    expect_stat 'cache miss' 1
+
+    $CCACHE_COMPILE -c test1.c -optf
+    expect_stat 'cache hit (preprocessed)' 2
+    expect_stat 'cache miss' 1
+
+    $UNCACHED_COMPILE -c -o reference_test1.o test1.c
+    expect_equal_object_files reference_test1.o dir
+    expect_equal_object_files reference_test1.o ptf
 
     # -------------------------------------------------------------------------
     TEST "Called for link"
@@ -3429,6 +3460,541 @@ SUITE_input_charset() {
 }
 
 # =============================================================================
+nvcc_PROBE() {
+    if ! $HAS_NVCC; then
+        echo "nvcc is not available"
+    fi
+}
+
+nvcc_SETUP() {
+    cat <<EOF >test1.cu
+#ifndef NUM
+#define NUM 10000
+#endif
+
+__global__
+void add(int* a, int* b) {
+  int i = blockIdx.x;
+  if (i<NUM) {
+    b[i] = 2*a[i];
+  }
+}
+
+void caller() {
+  add<<<NUM, 1>>>(NULL,NULL);
+}
+EOF
+    cat <<EOF >test1.optf
+-DNUM=1
+EOF
+    cat <<EOF >test2.optf
+-DNUM=2
+EOF
+}
+
+nvcc_tests() {
+    # Reference file testing was not successfull due to different "fatbin" data.
+    # Another source of differences are the temporary files created by nvcc,
+    # that can be avoided by using the options '--keep --keep-dir ./keep'.
+    # So instead of comparing the binary object files, we compare the dumps of
+    # cuobjdump -all -elf -symbols -ptx -sass test1.o
+    NVCC_OPTS="-Wno-deprecated-gpu-targets -c"
+    NVCC_GPU1="--generate-code arch=compute_50,code=compute_50"
+    NVCC_GPU2="--generate-code arch=compute_52,code=sm_52"
+    CCACHE_NVCC="$CCACHE $NVCC_CMD $NVCC_OPTS"
+    CUOBJDUMP="cuobjdump -all -elf -symbols -ptx -sass"
+
+    # -------------------------------------------------------------------------
+    TEST "simple mode"
+
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS -o reference_test1.o test1.cu
+    $CUOBJDUMP reference_test1.o > reference_test1.dump
+
+    # First compile
+    $CCACHE_NVCC test1.cu
+    expect_stat 'cache hit (preprocessed)' 0
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 1
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    $CCACHE_NVCC test1.cu
+    expect_stat 'cache hit (preprocessed)' 1
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 1
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    # -------------------------------------------------------------------------
+    TEST "different GPU architectures"
+
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS            -o reference_test1.o test1.cu
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS $NVCC_GPU1 -o reference_test2.o test1.cu
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS $NVCC_GPU2 -o reference_test3.o test1.cu
+    $CUOBJDUMP reference_test1.o > reference_test1.dump
+    $CUOBJDUMP reference_test2.o > reference_test2.dump
+    $CUOBJDUMP reference_test3.o > reference_test3.dump
+    expect_different_files reference_test1.dump reference_test2.dump
+    expect_different_files reference_test1.dump reference_test3.dump
+    expect_different_files reference_test2.dump reference_test3.dump
+
+    $CCACHE_NVCC test1.cu
+    expect_stat 'cache hit (preprocessed)' 0
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 1
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    # Other GPU
+    $CCACHE_NVCC $NVCC_GPU1 test1.cu
+    expect_stat 'cache hit (preprocessed)' 0
+    expect_stat 'cache miss' 2
+    expect_stat 'files in cache' 2
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test2.dump test1.dump
+
+    $CCACHE_NVCC $NVCC_GPU1 test1.cu
+    expect_stat 'cache hit (preprocessed)' 1
+    expect_stat 'cache miss' 2
+    expect_stat 'files in cache' 2
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test2.dump test1.dump
+
+    # Another GPU
+    $CCACHE_NVCC $NVCC_GPU2 test1.cu
+    expect_stat 'cache hit (preprocessed)' 1
+    expect_stat 'cache miss' 3
+    expect_stat 'files in cache' 3
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test3.dump test1.dump
+
+    $CCACHE_NVCC $NVCC_GPU2 test1.cu
+    expect_stat 'cache hit (preprocessed)' 2
+    expect_stat 'cache miss' 3
+    expect_stat 'files in cache' 3
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test3.dump test1.dump
+
+    # -------------------------------------------------------------------------
+    TEST "different defines"
+
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS            -o reference_test1.o test1.cu
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS -DNUM=10   -o reference_test2.o test1.cu
+    $CUOBJDUMP reference_test1.o > reference_test1.dump
+    $CUOBJDUMP reference_test2.o > reference_test2.dump
+    expect_different_files reference_test1.dump reference_test2.dump
+
+    $CCACHE_NVCC test1.cu
+    expect_stat 'cache hit (preprocessed)' 0
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 1
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    # Specified define, but unused. Can only be found by preprocessed mode
+    $CCACHE_NVCC -DDUMMYENV=1 test1.cu
+    expect_stat "cache hit (preprocessed)" 1
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 1
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    # Specified used define
+    $CCACHE_NVCC -DNUM=10 test1.cu
+    expect_stat "cache hit (preprocessed)" 1
+    expect_stat 'cache miss' 2
+    expect_stat 'files in cache' 2
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test2.dump test1.dump
+
+    $CCACHE_NVCC -DNUM=10 test1.cu
+    expect_stat 'cache hit (preprocessed)' 2
+    expect_stat 'cache miss' 2
+    expect_stat 'files in cache' 2
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test2.dump test1.dump
+
+    # -------------------------------------------------------------------------
+    TEST "option file"
+
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS -optf test1.optf -o reference_test1.o test1.cu
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS -optf test2.optf -o reference_test2.o test1.cu
+    $CUOBJDUMP reference_test1.o > reference_test1.dump
+    $CUOBJDUMP reference_test2.o > reference_test2.dump
+    expect_different_files reference_test1.dump reference_test2.dump
+
+    $CCACHE_NVCC -optf test1.optf test1.cu
+    expect_stat 'cache hit (preprocessed)' 0
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 1
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    $CCACHE_NVCC -optf test1.optf test1.cu
+    expect_stat 'cache hit (preprocessed)' 1
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 1
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    $CCACHE_NVCC -optf test2.optf test1.cu
+    expect_stat 'cache hit (preprocessed)' 1
+    expect_stat 'cache miss' 2
+    expect_stat 'files in cache' 2
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test2.dump test1.dump
+
+    $CCACHE_NVCC -optf test2.optf test1.cu
+    expect_stat 'cache hit (preprocessed)' 2
+    expect_stat 'cache miss' 2
+    expect_stat 'files in cache' 2
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test2.dump test1.dump
+
+    # -------------------------------------------------------------------------
+    TEST "option --compiler-bindir"
+
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS --compiler-bindir $compiler_location \
+                  -o reference_test1.o test1.cu
+    $CUOBJDUMP reference_test1.o > reference_test1.dump
+
+    # First compile
+    $CCACHE_NVCC --compiler-bindir $compiler_location test1.cu
+    expect_stat 'cache hit (preprocessed)' 0
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 1
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    $CCACHE_NVCC --compiler-bindir $compiler_location test1.cu
+    expect_stat 'cache hit (preprocessed)' 1
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 1
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    # -------------------------------------------------------------------------
+    TEST "option -ccbin"
+
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS -ccbin $compiler_location \
+                  -o reference_test1.o test1.cu
+    $CUOBJDUMP reference_test1.o > reference_test1.dump
+
+    # First compile
+    $CCACHE_NVCC -ccbin $compiler_location test1.cu
+    expect_stat 'cache hit (preprocessed)' 0
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 1
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    $CCACHE_NVCC -ccbin $compiler_location test1.cu
+    expect_stat 'cache hit (preprocessed)' 1
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 1
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    # -------------------------------------------------------------------------
+    TEST "option --output-directory"
+
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS --output-directory . \
+                  -o reference_test1.o test1.cu
+    $CUOBJDUMP reference_test1.o > reference_test1.dump
+
+    # First compile
+    $CCACHE_NVCC --output-directory . test1.cu
+    expect_stat 'cache hit (preprocessed)' 0
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 1
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    $CCACHE_NVCC --output-directory . test1.cu
+    expect_stat 'cache hit (preprocessed)' 1
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 1
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    # -------------------------------------------------------------------------
+    TEST "option -odir"
+
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS -odir . \
+                  -o reference_test1.o test1.cu
+    $CUOBJDUMP reference_test1.o > reference_test1.dump
+
+    # First compile
+    $CCACHE_NVCC -odir . test1.cu
+    expect_stat 'cache hit (preprocessed)' 0
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 1
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    $CCACHE_NVCC -odir . test1.cu
+    expect_stat 'cache hit (preprocessed)' 1
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 1
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    # -------------------------------------------------------------------------
+    TEST "option --libdevice-directory"
+
+    OLD_PATH=$PATH
+    NVCC_DIR=$(dirname $NVCC_CMD)
+    LIBDEVICEDIR=$NVCC_DIR/../nvvm/libdevice
+    INCLUDEDIR=$NVCC_DIR/../include
+    TEST_OPTS="--libdevice-directory $LIBDEVICEDIR -I $INCLUDEDIR --dont-use-profile"
+    export PATH=$PATH:$NVCC_DIR/../nvvm/bin
+
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS $TEST_OPTS -o reference_test1.o test1.cu
+    $CUOBJDUMP reference_test1.o > reference_test1.dump
+
+    # First compile
+    $CCACHE_NVCC $TEST_OPTS test1.cu
+    expect_stat 'cache hit (preprocessed)' 0
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 1
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    $CCACHE_NVCC $TEST_OPTS test1.cu
+    expect_stat 'cache hit (preprocessed)' 1
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 1
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    # -------------------------------------------------------------------------
+    TEST "option -ldir"
+
+    TEST_OPTS="-ldir $LIBDEVICEDIR -I $INCLUDEDIR --dont-use-profile"
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS $TEST_OPTS -o reference_test1.o test1.cu
+    $CUOBJDUMP reference_test1.o > reference_test1.dump
+
+    # First compile
+    $CCACHE_NVCC $TEST_OPTS test1.cu
+    expect_stat 'cache hit (preprocessed)' 0
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 1
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    $CCACHE_NVCC $TEST_OPTS test1.cu
+    expect_stat 'cache hit (preprocessed)' 1
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 1
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    export PATH=$OLD_PATH
+}
+
+# =============================================================================
+
+SUITE_nvcc_PROBE() {
+    nvcc_PROBE
+}
+
+SUITE_nvcc_SETUP() {
+    nvcc_SETUP
+}
+
+SUITE_nvcc() {
+    nvcc_tests
+}
+
+# =============================================================================
+
+SUITE_nvcc_nocpp2_PROBE() {
+    nvcc_PROBE
+}
+
+SUITE_nvcc_nocpp2_SETUP() {
+    export CCACHE_NOCPP2=1
+    nvcc_SETUP
+}
+
+SUITE_nvcc_nocpp2() {
+    nvcc_tests
+}
+
+# =============================================================================
+
+SUITE_nvcc_direct_PROBE() {
+    nvcc_PROBE
+}
+
+SUITE_nvcc_direct_SETUP() {
+    unset CCACHE_NODIRECT
+
+    nvcc_SETUP
+}
+
+SUITE_nvcc_direct() {
+    # Reference file testing was not successfull due to different "fatbin" data.
+    # Another source of differences are the temporary files created by nvcc,
+    # that can be avoided by using the options '--keep --keep-dir ./keep'.
+    # So instead of comparing the binary object files, we compare the dumps of
+    # cuobjdump -all -elf -symbols -ptx -sass test1.o
+    NVCC_OPTS="-Wno-deprecated-gpu-targets -c"
+    NVCC_GPU1="--generate-code arch=compute_50,code=compute_50"
+    NVCC_GPU2="--generate-code arch=compute_52,code=sm_52"
+    CCACHE_NVCC="$CCACHE $NVCC_CMD $NVCC_OPTS"
+    CUOBJDUMP="cuobjdump -all -elf -symbols -ptx -sass"
+
+    # -------------------------------------------------------------------------
+    TEST "simple mode"
+
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS -o reference_test1.o test1.cu
+    $CUOBJDUMP reference_test1.o > reference_test1.dump
+
+    # First compile
+    $CCACHE_NVCC test1.cu
+    expect_stat 'cache hit (direct)' 0
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 2
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    $CCACHE_NVCC test1.cu
+    expect_stat 'cache hit (direct)' 1
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 2
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    # -------------------------------------------------------------------------
+    TEST "different GPU architectures"
+
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS            -o reference_test1.o test1.cu
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS $NVCC_GPU1 -o reference_test2.o test1.cu
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS $NVCC_GPU2 -o reference_test3.o test1.cu
+    $CUOBJDUMP reference_test1.o > reference_test1.dump
+    $CUOBJDUMP reference_test2.o > reference_test2.dump
+    $CUOBJDUMP reference_test3.o > reference_test3.dump
+    expect_different_files reference_test1.dump reference_test2.dump
+    expect_different_files reference_test1.dump reference_test3.dump
+    expect_different_files reference_test2.dump reference_test3.dump
+
+    $CCACHE_NVCC test1.cu
+    expect_stat 'cache hit (direct)' 0
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 2
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    # Other GPU
+    $CCACHE_NVCC $NVCC_GPU1 test1.cu
+    expect_stat 'cache hit (direct)' 0
+    expect_stat 'cache miss' 2
+    expect_stat 'files in cache' 4
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test2.dump test1.dump
+
+    $CCACHE_NVCC $NVCC_GPU1 test1.cu
+    expect_stat 'cache hit (direct)' 1
+    expect_stat 'cache miss' 2
+    expect_stat 'files in cache' 4
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test2.dump test1.dump
+
+    # Another GPU
+    $CCACHE_NVCC $NVCC_GPU2 test1.cu
+    expect_stat 'cache hit (direct)' 1
+    expect_stat 'cache miss' 3
+    expect_stat 'files in cache' 6
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test3.dump test1.dump
+
+    $CCACHE_NVCC $NVCC_GPU2 test1.cu
+    expect_stat 'cache hit (direct)' 2
+    expect_stat 'cache miss' 3
+    expect_stat 'files in cache' 6
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test3.dump test1.dump
+
+    # -------------------------------------------------------------------------
+    TEST "different defines"
+
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS            -o reference_test1.o test1.cu
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS -DNUM=10   -o reference_test2.o test1.cu
+    $CUOBJDUMP reference_test1.o > reference_test1.dump
+    $CUOBJDUMP reference_test2.o > reference_test2.dump
+    expect_different_files reference_test1.dump reference_test2.dump
+
+    $CCACHE_NVCC test1.cu
+    expect_stat 'cache hit (direct)' 0
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 2
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    # Specified define, but unused. Can only be found by preprocessed mode
+    $CCACHE_NVCC -DDUMMYENV=1 test1.cu
+    expect_stat "cache hit (preprocessed)" 1
+    expect_stat "cache hit (direct)" 0
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 3
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    # Specified used define
+    $CCACHE_NVCC -DNUM=10 test1.cu
+    expect_stat "cache hit (direct)" 0
+    expect_stat 'cache miss' 2
+    expect_stat 'files in cache' 5
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test2.dump test1.dump
+
+    $CCACHE_NVCC -DNUM=10 test1.cu
+    expect_stat 'cache hit (direct)' 1
+    expect_stat 'cache miss' 2
+    expect_stat 'files in cache' 5
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test2.dump test1.dump
+
+    # -------------------------------------------------------------------------
+    TEST "option file"
+
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS -optf test1.optf -o reference_test1.o test1.cu
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS -optf test2.optf -o reference_test2.o test1.cu
+    $CUOBJDUMP reference_test1.o > reference_test1.dump
+    $CUOBJDUMP reference_test2.o > reference_test2.dump
+    expect_different_files reference_test1.dump reference_test2.dump
+
+    $CCACHE_NVCC -optf test1.optf test1.cu
+    expect_stat 'cache hit (direct)' 0
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 2
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    $CCACHE_NVCC -optf test1.optf test1.cu
+    expect_stat 'cache hit (direct)' 1
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 2
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    $CCACHE_NVCC -optf test2.optf test1.cu
+    expect_stat 'cache hit (direct)' 1
+    expect_stat 'cache miss' 2
+    expect_stat 'files in cache' 4
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test2.dump test1.dump
+
+    $CCACHE_NVCC -optf test2.optf test1.cu
+    expect_stat 'cache hit (direct)' 2
+    expect_stat 'cache miss' 2
+    expect_stat 'files in cache' 4
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test2.dump test1.dump
+}
+
+# =============================================================================
 # main program
 
 if pwd | grep '[^A-Za-z0-9/.,=_%+-]' >/dev/null 2>&1; then
@@ -3438,6 +4004,14 @@ funny characters in the name. Sorry.
 EOF
     exit 1
 fi
+
+# Remove common ccache directories on host from PATH variable
+HOST_CCACHE_DIRS="/usr/lib/ccache/bin
+/usr/lib/ccache"
+for HOST_CCACHE_DIR in $HOST_CCACHE_DIRS; do
+    PATH=$(echo -n $PATH | awk -v RS=: -v ORS=: '$0 != "'$HOST_CCACHE_DIR'"' | sed 's/:$//')
+done
+export PATH
 
 if [ -n "$CC" ]; then
     COMPILER="$CC"
@@ -3524,6 +4098,16 @@ else
     SYSROOT=
 fi
 
+
+HAS_NVCC=false
+NVCC_CMD=$(which nvcc)
+
+if [ -n "$NVCC_CMD" ]; then
+    if [ -e $NVCC_CMD ]; then
+        HAS_NVCC=true
+    fi
+fi
+
 # ---------------------------------------
 
 TESTDIR=testdir.$$
@@ -3535,6 +4119,9 @@ cd $TESTDIR || exit 1
 # ---------------------------------------
 
 all_suites="
+nvcc
+nvcc_direct
+nvcc_nocpp2
 base
 nocpp2
 multi_arch
@@ -3560,6 +4147,12 @@ else
     echo "Compiler:         $COMPILER ($compiler_location)"
 fi
 echo "Compiler version: $($COMPILER --version | head -n 1)"
+
+if $HAS_NVCC; then
+    echo "CUDA Compiler:    $($NVCC_CMD --version | tail -n 1) ($NVCC_CMD)"
+else
+    echo "CUDA Compiler:    not available"
+fi
 echo
 
 VERBOSE=false

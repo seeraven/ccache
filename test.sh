@@ -52,14 +52,14 @@ generate_code() {
 
     rm -f $outfile
     for i in $(seq $nlines); do
-        echo "int foo_$i(int x) { return x; }" >>$outfile
+	echo "int foo_$i(int x) { return x; }" >>$outfile
     done
 }
 
 remove_cache() {
     if [ -d $CCACHE_DIR ]; then
-        chmod -R +w $CCACHE_DIR
-        rm -rf $CCACHE_DIR
+	chmod -R +w $CCACHE_DIR
+	rm -rf $CCACHE_DIR
     fi
 }
 
@@ -72,8 +72,8 @@ sed_in_place() {
     shift
 
     for file in $*; do
-        sed "$expr" $file >$file.sed
-        mv $file.sed $file
+	sed "$expr" $file >$file.sed
+	mv $file.sed $file
     done
 }
 
@@ -87,33 +87,45 @@ expect_stat() {
     local value="$(echo $($CCACHE -s | fgrep "$stat" | cut -c34-))"
 
     if [ "$expected_value" != "$value" ]; then
-        test_failed "Expected \"$stat\" to be $expected_value, actual $value"
+	test_failed "Expected \"$stat\" to be $expected_value, actual $value"
     fi
 }
 
 expect_equal_files() {
     if [ ! -e "$1" ]; then
-        test_failed "compare_files: $1 missing"
+	test_failed "compare_files: $1 missing"
     fi
     if [ ! -e "$2" ]; then
-        test_failed "compare_files: $2 missing"
+	test_failed "compare_files: $2 missing"
     fi
     if ! cmp -s "$1" "$2"; then
-        test_failed "compare_files:: $1 and $2 differ"
+	test_failed "compare_files:: $1 and $2 differ"
+    fi
+}
+
+expect_different_files() {
+    if [ ! -e "$1" ]; then
+	test_failed "compare_files: $1 missing"
+    fi
+    if [ ! -e "$2" ]; then
+	test_failed "compare_files: $2 missing"
+    fi
+    if cmp -s "$1" "$2"; then
+	test_failed "compare_files:: $1 and $2 are identical"
     fi
 }
 
 expect_equal_object_files() {
     if $HOST_OS_LINUX && $COMPILER_TYPE_CLANG; then
-        if ! which eu-elfcmp >/dev/null 2>&1; then
-            test_failed "Please install elfutils to get eu-elfcmp"
-        fi
-        eu-elfcmp -q "$1" "$2"
+	if ! which eu-elfcmp >/dev/null 2>&1; then
+	    test_failed "Please install elfutils to get eu-elfcmp"
+	fi
+	eu-elfcmp -q "$1" "$2"
     else
-        cmp -s "$1" "$2"
+	cmp -s "$1" "$2"
     fi
     if [ $? -ne 0 ]; then
-        test_failed "Objects differ: $1 != $2"
+	test_failed "Objects differ: $1 != $2"
     fi
 }
 
@@ -122,10 +134,10 @@ expect_file_content() {
     local content="$2"
 
     if [ ! -f "$file" ]; then
-        test_failed "$file not found"
+	test_failed "$file not found"
     fi
     if [ "$(cat $file)" != "$content" ]; then
-        test_failed "Bad content of $file.\nExpected: $content\nActual: $(cat $file)"
+	test_failed "Bad content of $file.\nExpected: $content\nActual: $(cat $file)"
     fi
 }
 
@@ -135,7 +147,7 @@ expect_file_count() {
     local dir=$3
     local actual=`find $dir -name "$pattern" | wc -l`
     if [ $actual -ne $expected ]; then
-        test_failed "Found $actual (expected $expected) $pattern files in $dir"
+	test_failed "Found $actual (expected $expected) $pattern files in $dir"
     fi
 }
 
@@ -149,15 +161,15 @@ run_suite() {
     rm -rf $ABS_TESTDIR/fixture
 
     if type SUITE_${name}_PROBE >/dev/null 2>&1; then
-        mkdir $ABS_TESTDIR/probe
-        cd $ABS_TESTDIR/probe
-        local skip_reason="$(SUITE_${name}_PROBE)"
-        cd $ABS_TESTDIR
-        rm -rf $ABS_TESTDIR/probe
-        if [ -n "$skip_reason" ]; then
-            echo "Skipped test suite $name [$skip_reason]"
-            return
-        fi
+	mkdir $ABS_TESTDIR/probe
+	cd $ABS_TESTDIR/probe
+	local skip_reason="$(SUITE_${name}_PROBE)"
+	cd $ABS_TESTDIR
+	rm -rf $ABS_TESTDIR/probe
+	if [ -n "$skip_reason" ]; then
+	    echo "Skipped test suite $name [$skip_reason]"
+	    return
+	fi
     fi
 
     printf "Running test suite %s" "$(bold $name)"
@@ -218,9 +230,9 @@ TEST() {
     CCACHE_COMPILE="$CCACHE $COMPILER"
 
     if $VERBOSE; then
-        printf "\n  %s" $CURRENT_TEST
+	printf "\n  %s" $CURRENT_TEST
     else
-        printf .
+	printf .
     fi
 
     cd /
@@ -229,7 +241,7 @@ TEST() {
     mkdir $ABS_TESTDIR/run
     cd $ABS_TESTDIR/run
     if type SUITE_${name}_SETUP >/dev/null 2>&1; then
-        SUITE_${name}_SETUP
+	SUITE_${name}_SETUP
     fi
 }
 
@@ -361,7 +373,7 @@ base_tests() {
 
     CCACHE_DISABLE=1 $CCACHE_COMPILE -c test1.c 2>/dev/null
     if [ -d $CCACHE_DIR ]; then
-        test_failed "$CCACHE_DIR created despite CCACHE_DISABLE being set"
+	test_failed "$CCACHE_DIR created despite CCACHE_DISABLE being set"
     fi
 
     # -------------------------------------------------------------------------
@@ -514,7 +526,7 @@ base_tests() {
     actual_dirs=$(find $CCACHE_DIR -type d | wc -l)
     expected_dirs=6
     if [ $actual_dirs -ne $expected_dirs ]; then
-        test_failed "Expected $expected_dirs directories, found $actual_dirs"
+	test_failed "Expected $expected_dirs directories, found $actual_dirs"
     fi
 
     # -------------------------------------------------------------------------
@@ -597,8 +609,8 @@ b"
     TEST "Files in cache"
 
     for i in $(seq 32); do
-        generate_code $i test$i.c
-        $CCACHE_COMPILE -c test$i.c
+	generate_code $i test$i.c
+	$CCACHE_COMPILE -c test$i.c
     done
     expect_stat 'cache hit (preprocessed)' 0
     expect_stat 'cache miss' 32
@@ -709,7 +721,7 @@ EOF
     chmod +x $override_path/cc
     CCACHE_PATH=$override_path $CCACHE cc -c test1.c
     if [ ! -f override_path_compiler_executed ]; then
-        test_failed "CCACHE_PATH had no effect"
+	test_failed "CCACHE_PATH had no effect"
     fi
 
     # -------------------------------------------------------------------------
@@ -857,7 +869,7 @@ EOF
 
     CCACHE_COMPILERCHECK="unknown_command" $CCACHE ./compiler.sh -c test1.c 2>/dev/null
     if [ "$?" -eq 0 ]; then
-        test_failed "Expected failure running unknown_command to verify compiler but was success"
+	test_failed "Expected failure running unknown_command to verify compiler but was success"
     fi
     expect_stat 'compiler check failed' 1
 
@@ -870,7 +882,7 @@ EOF
 
     num=`find $CCACHE_DIR -name '*.stderr' | wc -l`
     if [ $num -ne 0 ]; then
-        test_failed "$num stderr files found, expected 0 (#1)"
+	test_failed "$num stderr files found, expected 0 (#1)"
     fi
 
     obj_file=`find $CCACHE_DIR -name '*.o'`
@@ -879,7 +891,7 @@ EOF
     CCACHE_RECACHE=1 $CCACHE_COMPILE -c test1.c
     num=`find $CCACHE_DIR -name '*.stderr' | wc -l`
     if [ $num -ne 0 ]; then
-        test_failed "$num stderr files found, expected 0 (#2)"
+	test_failed "$num stderr files found, expected 0 (#2)"
     fi
 
     # -------------------------------------------------------------------------
@@ -930,7 +942,7 @@ EOF
     $CCACHE_COMPILE -Wall -W -c stderr.c 2>/dev/null
     num=`find $CCACHE_DIR -name '*.stderr' | wc -l`
     if [ $num -ne 1 ]; then
-        test_failed "$num stderr files found, expected 1"
+	test_failed "$num stderr files found, expected 1"
     fi
     expect_stat 'files in cache' 2
 
@@ -1027,7 +1039,7 @@ else
   $COMPILER "\$@" |
     sed -e '/^# 1 "<command-line>"\$/ a\\
 # 31 "<command-line>"' \\
-        -e 's/^# 1 "<command-line>" 2\$/# 32 "<command-line>" 2/'
+	-e 's/^# 1 "<command-line>" 2\$/# 32 "<command-line>" 2/'
 fi
 exit 0
 EOF
@@ -1064,7 +1076,7 @@ EOF
     CCACHE_BASEDIR=/ $CCACHE_COMPILE -c $PWD/d3/c.c
     $UNCACHED_COMPILE c.o -o c
     if [ "$(./c)" != OK ]; then
-        test_failed "Incorrect header file used"
+	test_failed "Incorrect header file used"
     fi
 
     # -------------------------------------------------------------------------
@@ -1085,7 +1097,7 @@ EOF
     CCACHE_BASEDIR=/ $CCACHE_COMPILE -c $PWD/c.c
     $UNCACHED_COMPILE c.o -o c
     if [ "$(./c)" != OK ]; then
-        test_failed "Incorrect header file used"
+	test_failed "Incorrect header file used"
     fi
 
     # -------------------------------------------------------------------------
@@ -1126,8 +1138,8 @@ SUITE_nocpp2() {
 
 SUITE_multi_arch_PROBE() {
     if ! $HOST_OS_APPLE; then
-        echo "multiple -arch options not supported on $(uname -s)"
-        return
+	echo "multiple -arch options not supported on $(uname -s)"
+	return
     fi
 }
 
@@ -1194,8 +1206,8 @@ SUITE_multi_arch() {
 SUITE_serialize_diagnostics_PROBE() {
     touch test.c
     if ! $UNCACHED_COMPILE -c --serialize-diagnostics \
-         test1.dia test.c 2>/dev/null; then
-        echo "--serialize-diagnostics not supported by compiler"
+	 test1.dia test.c 2>/dev/null; then
+	echo "--serialize-diagnostics not supported by compiler"
     fi
 }
 
@@ -1228,7 +1240,7 @@ SUITE_serialize_diagnostics() {
 
     echo "bad source" >error.c
     if $UNCACHED_COMPILE -c --serialize-diagnostics expected.dia error.c 2>expected.stderr; then
-        test_failed "Expected an error compiling error.c"
+	test_failed "Expected an error compiling error.c"
     fi
 
     $CCACHE_COMPILE -c --serialize-diagnostics test.dia error.c 2>test.stderr
@@ -1281,7 +1293,7 @@ EOF
 
 SUITE_debug_prefix_map_PROBE() {
     if ! $COMPILER_TYPE_GCC || $COMPILER_USES_MINGW; then
-        echo "-fdebug-prefix-map not supported by compiler"
+	echo "-fdebug-prefix-map not supported by compiler"
     fi
 }
 
@@ -1311,7 +1323,7 @@ SUITE_debug_prefix_map() {
     expect_stat 'cache miss' 1
     expect_stat 'files in cache' 2
     if grep -E "[^=]`pwd`[^=]" test.o >/dev/null 2>&1; then
-        test_failed "Source dir (`pwd`) found in test.o"
+	test_failed "Source dir (`pwd`) found in test.o"
     fi
 
     cd ../dir2
@@ -1321,7 +1333,7 @@ SUITE_debug_prefix_map() {
     expect_stat 'cache miss' 1
     expect_stat 'files in cache' 2
     if grep -E "[^=]`pwd`[^=]" test.o >/dev/null 2>&1; then
-        test_failed "Source dir (`pwd`) found in test.o"
+	test_failed "Source dir (`pwd`) found in test.o"
     fi
 
     # -------------------------------------------------------------------------
@@ -1334,10 +1346,10 @@ SUITE_debug_prefix_map() {
     expect_stat 'cache miss' 1
     expect_stat 'files in cache' 2
     if grep -E "[^=]`pwd`[^=]" test.o >/dev/null 2>&1; then
-        test_failed "Source dir (`pwd`) found in test.o"
+	test_failed "Source dir (`pwd`) found in test.o"
     fi
     if ! grep "foobar" test.o >/dev/null 2>&1; then
-        test_failed "Relocation (foobar) not found in test.o"
+	test_failed "Relocation (foobar) not found in test.o"
     fi
 
     cd ../dir2
@@ -1347,7 +1359,7 @@ SUITE_debug_prefix_map() {
     expect_stat 'cache miss' 1
     expect_stat 'files in cache' 2
     if grep -E "[^=]`pwd`[^=]" test.o >/dev/null 2>&1; then
-        test_failed "Source dir (`pwd`) found in test.o"
+	test_failed "Source dir (`pwd`) found in test.o"
     fi
 }
 
@@ -1356,7 +1368,7 @@ SUITE_debug_prefix_map() {
 SUITE_masquerading_PROBE() {
     local compiler_binary=$(echo $COMPILER | cut -d' ' -f1)
     if [ "$(dirname $compiler_binary)" != . ]; then
-        echo "compiler ($compiler_binary) not taken from PATH"
+	echo "compiler ($compiler_binary) not taken from PATH"
     fi
 }
 
@@ -1393,7 +1405,7 @@ SUITE_masquerading() {
 SUITE_hardlink_PROBE() {
     touch file1
     if ! ln file1 file2 >/dev/null 2>&1; then
-        echo "file system doesn't support hardlinks"
+	echo "file system doesn't support hardlinks"
     fi
 }
 
@@ -1419,7 +1431,7 @@ SUITE_hardlink() {
 
     local obj_in_cache=$(find $CCACHE_DIR -name '*.o')
     if [ ! $obj_in_cache -ef test1.o ]; then
-        test_failed "Object file not hard-linked to cached object file"
+	test_failed "Object file not hard-linked to cached object file"
     fi
 }
 
@@ -1555,13 +1567,13 @@ EOF
 
     mkdir test.dir
     for ext in .obj "" . .foo.bar; do
-        dep_file=test.dir/`echo test$ext | sed 's/\.[^.]*\$//'`.d
-        $CCACHE_COMPILE -MD -c test.c -o test.dir/test$ext
-        rm -f $dep_file
-        $CCACHE_COMPILE -MD -c test.c -o test.dir/test$ext
-        if [ ! -f $dep_file ]; then
-            test_failed "$dep_file missing"
-        fi
+	dep_file=test.dir/`echo test$ext | sed 's/\.[^.]*\$//'`.d
+	$CCACHE_COMPILE -MD -c test.c -o test.dir/test$ext
+	rm -f $dep_file
+	$CCACHE_COMPILE -MD -c test.c -o test.dir/test$ext
+	if [ ! -f $dep_file ]; then
+	    test_failed "$dep_file missing"
+	fi
     done
     expect_stat 'files in cache' 12
 
@@ -1701,10 +1713,10 @@ EOF
     TEST "Multiple object entries in manifest"
 
     for i in 0 1 2 3 4; do
-        echo "int test1_$i;" >>test1.h
-        backdate test1.h
-        $CCACHE_COMPILE -c test.c
-        $CCACHE_COMPILE -c test.c
+	echo "int test1_$i;" >>test1.h
+	backdate test1.h
+	$CCACHE_COMPILE -c test.c
+	$CCACHE_COMPILE -c test.c
     done
     expect_stat 'cache hit (direct)' 5
     expect_stat 'cache hit (preprocessed)' 0
@@ -1759,19 +1771,19 @@ int test() { return 0; }
 EOF
 
     if $COMPILER_TYPE_GCC; then
-        $CCACHE_COMPILE -c -fstack-usage code.c
-        expect_stat 'cache hit (direct)' 0
-        expect_stat 'cache hit (preprocessed)' 0
-        expect_stat 'cache miss' 1
-        test -r code.su || test_failed "code.su missing"
+	$CCACHE_COMPILE -c -fstack-usage code.c
+	expect_stat 'cache hit (direct)' 0
+	expect_stat 'cache hit (preprocessed)' 0
+	expect_stat 'cache miss' 1
+	test -r code.su || test_failed "code.su missing"
 
-        rm code.su
+	rm code.su
 
-        $CCACHE_COMPILE -c -fstack-usage code.c
-        expect_stat 'cache hit (direct)' 1
-        expect_stat 'cache hit (preprocessed)' 0
-        expect_stat 'cache miss' 1
-        test -r code.su || test_failed "code.su missing"
+	$CCACHE_COMPILE -c -fstack-usage code.c
+	expect_stat 'cache hit (direct)' 1
+	expect_stat 'cache hit (preprocessed)' 0
+	expect_stat 'cache miss' 1
+	test -r code.su || test_failed "code.su missing"
     fi
 
     # -------------------------------------------------------------------------
@@ -2226,19 +2238,19 @@ EOF
 int foo;
 EOF
     for x in stdout tty sda hda; do
-        if [ -b /dev/$x ] || [ -c /dev/$x ]; then
-            echo "#line 1 \"/dev/$x\"" >>strange.c
-        fi
+	if [ -b /dev/$x ] || [ -c /dev/$x ]; then
+	    echo "#line 1 \"/dev/$x\"" >>strange.c
+	fi
     done
 
     CCACHE_SLOPPINESS="$DEFAULT_SLOPPINESS include_file_mtime" $CCACHE_COMPILE -c strange.c
 
     manifest=`find $CCACHE_DIR -name '*.manifest'`
     if [ -n "$manifest" ]; then
-        data="`$CCACHE --dump-manifest $manifest | egrep '/dev/(stdout|tty|sda|hda'`"
-        if [ -n "$data" ]; then
-            test_failed "$manifest contained troublesome file(s): $data"
-        fi
+	data="`$CCACHE --dump-manifest $manifest | egrep '/dev/(stdout|tty|sda|hda'`"
+	if [ -n "$data" ]; then
+	    test_failed "$manifest contained troublesome file(s): $data"
+	fi
     fi
 
     # -------------------------------------------------------------------------
@@ -2252,9 +2264,9 @@ EOF
     if grep 'Hash: d4de2f956b4a386c6660990a7a1ab13f' manifest.dump >/dev/null 2>&1 && \
        grep 'Hash: e94ceb9f1b196c387d098a5f1f4fe862' manifest.dump >/dev/null 2>&1 && \
        grep 'Hash: ba753bebf9b5eb99524bb7447095e2e6' manifest.dump >/dev/null 2>&1; then
-        : OK
+	: OK
     else
-        test_failed "Unexpected output of --dump-manifest"
+	test_failed "Unexpected output of --dump-manifest"
     fi
 
     # -------------------------------------------------------------------------
@@ -2296,7 +2308,7 @@ EOF
     manifest=`find $CCACHE_DIR -name '*.manifest'`
     data="`$CCACHE --dump-manifest $manifest | grep subdir/ignore.h`"
     if [ -n "$data" ]; then
-        test_failed "$manifest contained ignored header: $data"
+	test_failed "$manifest contained ignored header: $data"
     fi
 
     # -------------------------------------------------------------------------
@@ -2316,7 +2328,7 @@ EOF
     manifest=`find $CCACHE_DIR -name '*.manifest'`
     data="`$CCACHE --dump-manifest $manifest | grep subdir/ignore.h`"
     if [ -n "$data" ]; then
-        test_failed "$manifest contained ignored header: $data"
+	test_failed "$manifest contained ignored header: $data"
     fi
 }
 
@@ -2403,7 +2415,7 @@ EOF
     expect_stat 'cache hit (preprocessed)' 0
     expect_stat 'cache miss' 1
     if grep `pwd` stderr.txt >/dev/null 2>&1; then
-        test_failed "Base dir (`pwd`) found in stderr:\n`cat stderr.txt`"
+	test_failed "Base dir (`pwd`) found in stderr:\n`cat stderr.txt`"
     fi
 
     CCACHE_BASEDIR=`pwd` $CCACHE_COMPILE -Wall -W -I`pwd` -c `pwd`/stderr.c -o `pwd`/stderr.o 2>stderr.txt
@@ -2411,27 +2423,27 @@ EOF
     expect_stat 'cache hit (preprocessed)' 0
     expect_stat 'cache miss' 1
     if grep `pwd` stderr.txt >/dev/null 2>&1; then
-        test_failed "Base dir (`pwd`) found in stderr:\n`cat stderr.txt`"
+	test_failed "Base dir (`pwd`) found in stderr:\n`cat stderr.txt`"
     fi
 
     # -------------------------------------------------------------------------
     TEST "-MF/-MQ/-MT with absolute paths"
 
     for option in MF "MF " MQ "MQ " MT "MT "; do
-        clear_cache
-        cd dir1
-        CCACHE_BASEDIR="`pwd`" $CCACHE_COMPILE -I`pwd`/include -MD -${option}`pwd`/test.d -c src/test.c
-        expect_stat 'cache hit (direct)' 0
-        expect_stat 'cache hit (preprocessed)' 0
-        expect_stat 'cache miss' 1
-        cd ..
+	clear_cache
+	cd dir1
+	CCACHE_BASEDIR="`pwd`" $CCACHE_COMPILE -I`pwd`/include -MD -${option}`pwd`/test.d -c src/test.c
+	expect_stat 'cache hit (direct)' 0
+	expect_stat 'cache hit (preprocessed)' 0
+	expect_stat 'cache miss' 1
+	cd ..
 
-        cd dir2
-        CCACHE_BASEDIR="`pwd`" $CCACHE_COMPILE -I`pwd`/include -MD -${option}`pwd`/test.d -c src/test.c
-        expect_stat 'cache hit (direct)' 1
-        expect_stat 'cache hit (preprocessed)' 0
-        expect_stat 'cache miss' 1
-        cd ..
+	cd dir2
+	CCACHE_BASEDIR="`pwd`" $CCACHE_COMPILE -I`pwd`/include -MD -${option}`pwd`/test.d -c src/test.c
+	expect_stat 'cache hit (direct)' 1
+	expect_stat 'cache hit (preprocessed)' 0
+	expect_stat 'cache miss' 1
+	cd ..
     done
 
     # -------------------------------------------------------------------------
@@ -2441,28 +2453,28 @@ EOF
     TEST "-MF/-MQ/-MT with absolute paths and BASEDIR set to /"
 
     for option in MF "MF " MQ "MQ " MT "MT "; do
-        clear_cache
-        cd dir1
-        CCACHE_BASEDIR="/" $CCACHE_COMPILE -I`pwd`/include -MD -${option}`pwd`/test.d -c src/test.c
-        expect_stat 'cache hit (direct)' 0
-        expect_stat 'cache hit (preprocessed)' 0
-        expect_stat 'cache miss' 1
-        # Check that there is no absolute path in the dependency file:
-        while read line; do
-            for file in $line; do
-                case $file in /*)
-                    test_failed "Absolute file path '$file' found in dependency file '`pwd`/test.d'"
-                esac
-            done
-        done <test.d
-        cd ..
+	clear_cache
+	cd dir1
+	CCACHE_BASEDIR="/" $CCACHE_COMPILE -I`pwd`/include -MD -${option}`pwd`/test.d -c src/test.c
+	expect_stat 'cache hit (direct)' 0
+	expect_stat 'cache hit (preprocessed)' 0
+	expect_stat 'cache miss' 1
+	# Check that there is no absolute path in the dependency file:
+	while read line; do
+	    for file in $line; do
+		case $file in /*)
+		    test_failed "Absolute file path '$file' found in dependency file '`pwd`/test.d'"
+		esac
+	    done
+	done <test.d
+	cd ..
 
-        cd dir2
-        CCACHE_BASEDIR="/" $CCACHE_COMPILE -I`pwd`/include -MD -${option}`pwd`/test.d -c src/test.c
-        expect_stat 'cache hit (direct)' 1
-        expect_stat 'cache hit (preprocessed)' 0
-        expect_stat 'cache miss' 1
-        cd ..
+	cd dir2
+	CCACHE_BASEDIR="/" $CCACHE_COMPILE -I`pwd`/include -MD -${option}`pwd`/test.d -c src/test.c
+	expect_stat 'cache hit (direct)' 1
+	expect_stat 'cache hit (preprocessed)' 0
+	expect_stat 'cache miss' 1
+	cd ..
     done
 }
 
@@ -2524,16 +2536,16 @@ SUITE_readonly() {
     chmod -R +w $CCACHE_DIR
 
     if [ $status1 -ne 0 ]; then
-        test_failed "Failure when compiling test.c read-only"
+	test_failed "Failure when compiling test.c read-only"
     fi
     if [ $status2 -ne 0 ]; then
-        test_failed "Failure when compiling test2.c read-only"
+	test_failed "Failure when compiling test2.c read-only"
     fi
     if [ ! -f test.o ]; then
-        test_failed "test.o missing"
+	test_failed "test.o missing"
     fi
     if [ ! -f test2.o ]; then
-        test_failed "test2.o missing"
+	test_failed "test2.o missing"
     fi
 
     # -------------------------------------------------------------------------
@@ -2542,10 +2554,10 @@ SUITE_readonly() {
     # Check that read-only mode doesn't try to store new results.
     CCACHE_READONLY=1 CCACHE_TEMPDIR=/tmp $CCACHE_COMPILE -c test.c
     if [ $? -ne 0 ]; then
-        test_failed "Failure when compiling test2.c read-only"
+	test_failed "Failure when compiling test2.c read-only"
     fi
     if [ -d $CCACHE_DIR ]; then
-        test_failed "ccache dir was created"
+	test_failed "ccache dir was created"
     fi
 
     # -------------------------------------------------------------------------
@@ -2570,10 +2582,10 @@ SUITE_readonly() {
     chmod -R +w $CCACHE_DIR
 
     if [ $? -ne 0 ]; then
-        test_failed "Failure when compiling test.c read-only"
+	test_failed "Failure when compiling test.c read-only"
     fi
     if [ $files_after -ne $files_before ]; then
-        test_failed "Read-only mode + direct mode stored files in the cache"
+	test_failed "Read-only mode + direct mode stored files in the cache"
     fi
 }
 
@@ -2621,12 +2633,12 @@ prepare_cleanup_test_dir() {
     rm -rf $dir
     mkdir -p $dir
     for i in $(seq 0 9); do
-        printf '%4017s' '' | tr ' ' 'A' >$dir/result$i-4017.o
-        touch $dir/result$i-4017.stderr
-        touch $dir/result$i-4017.d
-        if [ $i -gt 5 ]; then
-            backdate $dir/result$i-4017.stderr
-        fi
+	printf '%4017s' '' | tr ' ' 'A' >$dir/result$i-4017.o
+	touch $dir/result$i-4017.stderr
+	touch $dir/result$i-4017.d
+	if [ $i -gt 5 ]; then
+	    backdate $dir/result$i-4017.stderr
+	fi
     done
     # NUMFILES: 30, TOTALSIZE: 40 KiB, MAXFILES: 0, MAXSIZE: 0
     echo "0 0 0 0 0 0 0 0 0 0 0 30 40 0 0" >$dir/stats
@@ -2673,16 +2685,16 @@ SUITE_cleanup() {
     expect_stat 'files in cache' 21
     expect_stat 'cleanups performed' 1
     for i in 0 1 2 3 4 5 9; do
-        file=$CCACHE_DIR/a/result$i-4017.o
-        if [ ! -f $file ]; then
-            test_failed "File $file removed when it shouldn't"
-        fi
+	file=$CCACHE_DIR/a/result$i-4017.o
+	if [ ! -f $file ]; then
+	    test_failed "File $file removed when it shouldn't"
+	fi
     done
     for i in 6 7 8; do
-        file=$CCACHE_DIR/a/result$i-4017.o
-        if [ -f $file ]; then
-            test_failed "File $file not removed when it should"
-        fi
+	file=$CCACHE_DIR/a/result$i-4017.o
+	if [ -f $file ]; then
+	    test_failed "File $file not removed when it should"
+	fi
     done
 
     # -------------------------------------------------------------------------
@@ -2707,23 +2719,23 @@ SUITE_cleanup() {
     expect_stat 'files in cache' 9
     expect_stat 'cleanups performed' 1
     for i in 3 4 5; do
-        file=$CCACHE_DIR/a/result$i-4017.o
-        if [ ! -f $file ]; then
-            test_failed "File $file removed when it shouldn't"
-        fi
+	file=$CCACHE_DIR/a/result$i-4017.o
+	if [ ! -f $file ]; then
+	    test_failed "File $file removed when it shouldn't"
+	fi
     done
     for i in 0 1 2 6 7 8 9; do
-        file=$CCACHE_DIR/a/result$i-4017.o
-        if [ -f $file ]; then
-            test_failed "File $file not removed when it should"
-        fi
+	file=$CCACHE_DIR/a/result$i-4017.o
+	if [ -f $file ]; then
+	    test_failed "File $file not removed when it should"
+	fi
     done
 
     # -------------------------------------------------------------------------
     TEST "Automatic cache cleanup"
 
     for x in 0 1 2 3 4 5 6 7 8 9 a b c d e f; do
-        prepare_cleanup_test_dir $CCACHE_DIR/$x
+	prepare_cleanup_test_dir $CCACHE_DIR/$x
     done
 
     # (9/10) * 30 * 16 = 432
@@ -2757,16 +2769,16 @@ SUITE_cleanup() {
     expect_file_count 7 '*.stderr' $CCACHE_DIR
     expect_stat 'files in cache' 21
     for i in 0 1 3 4 5 8 9; do
-        file=$CCACHE_DIR/a/result$i-4017.o
-        if [ ! -f $file ]; then
-            test_failed "File $file removed when it shouldn't"
-        fi
+	file=$CCACHE_DIR/a/result$i-4017.o
+	if [ ! -f $file ]; then
+	    test_failed "File $file removed when it shouldn't"
+	fi
     done
     for i in 2 6 7; do
-        file=$CCACHE_DIR/a/result$i-4017.o
-        if [ -f $file ]; then
-            test_failed "File $file not removed when it should"
-        fi
+	file=$CCACHE_DIR/a/result$i-4017.o
+	if [ -f $file ]; then
+	    test_failed "File $file not removed when it should"
+	fi
     done
 
     # -------------------------------------------------------------------------
@@ -2781,7 +2793,7 @@ SUITE_cleanup() {
     $CCACHE -F 432 -M 0 >/dev/null
     $CCACHE -c >/dev/null
     if [ ! -f $CCACHE_DIR/a/abcd.unknown ]; then
-        test_failed "$CCACHE_DIR/a/abcd.unknown removed"
+	test_failed "$CCACHE_DIR/a/abcd.unknown removed"
     fi
     expect_stat 'files in cache' 19
 
@@ -2795,7 +2807,7 @@ SUITE_cleanup() {
     backdate $CCACHE_DIR/a/abcd.unknown
     $CCACHE -c >/dev/null
     if [ -f $CCACHE_DIR/a/abcd.unknown ]; then
-        test_failed "$CCACHE_DIR/a/abcd.unknown not removed"
+	test_failed "$CCACHE_DIR/a/abcd.unknown not removed"
     fi
 
     # -------------------------------------------------------------------------
@@ -2808,7 +2820,7 @@ SUITE_cleanup() {
     backdate $CCACHE_DIR/a/abcd.tmp.efgh
     $CCACHE -c >/dev/null
     if [ -f $CCACHE_DIR/a/abcd.tmp.efgh ]; then
-        test_failed "$CCACHE_DIR/a/abcd.tmp.unknown not removed"
+	test_failed "$CCACHE_DIR/a/abcd.tmp.unknown not removed"
     fi
     expect_stat 'files in cache' 0
 
@@ -2839,8 +2851,8 @@ SUITE_cleanup() {
 SUITE_pch_PROBE() {
     touch pch.h
     if ! $UNCACHED_COMPILE $SYSROOT -fpch-preprocess pch.h 2>/dev/null \
-            || [ ! -f pch.h.gch ]; then
-        echo "compiler ($($COMPILER --version | head -1)) doesn't support precompiled headers"
+	    || [ ! -f pch.h.gch ]; then
+	echo "compiler ($($COMPILER --version | head -1)) doesn't support precompiled headers"
     fi
 }
 
@@ -2879,9 +2891,9 @@ SUITE_pch() {
     # source file.
 
     if $COMPILER_TYPE_CLANG; then
-        pch_suite_clang
+	pch_suite_clang
     else
-        pch_suite_gcc
+	pch_suite_gcc
     fi
 }
 
@@ -2918,7 +2930,7 @@ pch_suite_gcc() {
     expect_stat 'cache hit (preprocessed)' 0
     expect_stat 'cache miss' 1
     if [ ! -f pch.h.gch ]; then
-        test_failed "pch.h.gch missing"
+	test_failed "pch.h.gch missing"
     fi
 
     # -------------------------------------------------------------------------
@@ -2934,7 +2946,7 @@ pch_suite_gcc() {
     expect_stat 'cache hit (preprocessed)' 0
     expect_stat 'cache miss' 1
     if [ ! -f pch.gch ]; then
-        test_failed "pch.gch missing"
+	test_failed "pch.gch missing"
     fi
 
     # -------------------------------------------------------------------------
@@ -3119,7 +3131,7 @@ pch_suite_clang() {
     expect_stat 'cache hit (preprocessed)' 0
     expect_stat 'cache miss' 1
     if [ ! -f pch.h.gch ]; then
-        test_failed "pch.h.gch missing"
+	test_failed "pch.h.gch missing"
     fi
 
     # -------------------------------------------------------------------------
@@ -3135,7 +3147,7 @@ pch_suite_clang() {
     expect_stat 'cache hit (preprocessed)' 0
     expect_stat 'cache miss' 1
     if [ ! -f pch.gch ]; then
-        test_failed "pch.gch missing"
+	test_failed "pch.gch missing"
     fi
 
     # -------------------------------------------------------------------------
@@ -3245,7 +3257,7 @@ pch_suite_clang() {
     expect_stat 'cache hit (preprocessed)' 0
     expect_stat 'cache miss' 1
     if [ ! -f pch.h.pth ]; then
-        test_failed "pch.h.pth missing"
+	test_failed "pch.h.pth missing"
     fi
 
     # -------------------------------------------------------------------------
@@ -3359,7 +3371,7 @@ SUITE_upgrade() {
 SUITE_input_charset_PROBE() {
     touch test.c
     if ! $UNCACHED_COMPILE -c -finput-charset=latin1 test.c >/dev/null 2>&1; then
-        echo "compiler doesn't support -finput-charset"
+	echo "compiler doesn't support -finput-charset"
     fi
 }
 
@@ -3387,6 +3399,401 @@ SUITE_input_charset() {
 }
 
 # =============================================================================
+nvcc_PROBE() {
+    if ! $HAS_NVCC; then
+	echo "nvcc is not available"
+    fi
+}
+
+nvcc_SETUP() {
+    cat <<EOF >test1.cu
+#ifndef NUM
+#define NUM 10000
+#endif
+
+__global__
+void add(int* a, int* b) {
+  int i = blockIdx.x;
+  if (i<NUM) {
+    b[i] = 2*a[i];
+  }
+}
+
+void caller() {
+  add<<<NUM, 1>>>(NULL,NULL);
+}
+EOF
+    cat <<EOF >test1.optf
+-DNUM=1
+EOF
+    cat <<EOF >test2.optf
+-DNUM=2
+EOF
+}
+
+nvcc_tests() {
+    # Reference file testing was not successfull due to different "fatbin" data.
+    # Another source of differences are the temporary files created by nvcc,
+    # that can be avoided by using the options '--keep --keep-dir ./keep'.
+    # So instead of comparing the binary object files, we compare the dumps of
+    # cuobjdump -all -elf -symbols -ptx -sass test1.o
+    NVCC_OPTS="-Wno-deprecated-gpu-targets -c"
+    NVCC_GPU1="--generate-code arch=compute_50,code=compute_50"
+    NVCC_GPU2="--generate-code arch=compute_52,code=sm_52"
+    CCACHE_NVCC="$CCACHE $NVCC_CMD $NVCC_OPTS"
+    CUOBJDUMP="cuobjdump -all -elf -symbols -ptx -sass"
+
+    # -------------------------------------------------------------------------
+    TEST "simple mode"
+
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS -o reference_test1.o test1.cu
+    $CUOBJDUMP reference_test1.o > reference_test1.dump
+
+    # First compile
+    $CCACHE_NVCC test1.cu
+    expect_stat 'cache hit (preprocessed)' 0
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 1
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    $CCACHE_NVCC test1.cu
+    expect_stat 'cache hit (preprocessed)' 1
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 1
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    # -------------------------------------------------------------------------
+    TEST "different GPU architectures"
+
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS            -o reference_test1.o test1.cu
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS $NVCC_GPU1 -o reference_test2.o test1.cu
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS $NVCC_GPU2 -o reference_test3.o test1.cu
+    $CUOBJDUMP reference_test1.o > reference_test1.dump
+    $CUOBJDUMP reference_test2.o > reference_test2.dump
+    $CUOBJDUMP reference_test3.o > reference_test3.dump
+    expect_different_files reference_test1.dump reference_test2.dump
+    expect_different_files reference_test1.dump reference_test3.dump
+    expect_different_files reference_test2.dump reference_test3.dump
+
+    $CCACHE_NVCC test1.cu
+    expect_stat 'cache hit (preprocessed)' 0
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 1
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    # Other GPU
+    $CCACHE_NVCC $NVCC_GPU1 test1.cu
+    expect_stat 'cache hit (preprocessed)' 0
+    expect_stat 'cache miss' 2
+    expect_stat 'files in cache' 2
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test2.dump test1.dump
+
+    $CCACHE_NVCC $NVCC_GPU1 test1.cu
+    expect_stat 'cache hit (preprocessed)' 1
+    expect_stat 'cache miss' 2
+    expect_stat 'files in cache' 2
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test2.dump test1.dump
+
+    # Another GPU
+    $CCACHE_NVCC $NVCC_GPU2 test1.cu
+    expect_stat 'cache hit (preprocessed)' 1
+    expect_stat 'cache miss' 3
+    expect_stat 'files in cache' 3
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test3.dump test1.dump
+
+    $CCACHE_NVCC $NVCC_GPU2 test1.cu
+    expect_stat 'cache hit (preprocessed)' 2
+    expect_stat 'cache miss' 3
+    expect_stat 'files in cache' 3
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test3.dump test1.dump
+
+    # -------------------------------------------------------------------------
+    TEST "different defines"
+
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS            -o reference_test1.o test1.cu
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS -DNUM=10   -o reference_test2.o test1.cu
+    $CUOBJDUMP reference_test1.o > reference_test1.dump
+    $CUOBJDUMP reference_test2.o > reference_test2.dump
+    expect_different_files reference_test1.dump reference_test2.dump
+
+    $CCACHE_NVCC test1.cu
+    expect_stat 'cache hit (preprocessed)' 0
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 1
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    # Specified define, but unused. Can only be found by preprocessed mode
+    $CCACHE_NVCC -DDUMMYENV=1 test1.cu
+    expect_stat "cache hit (preprocessed)" 1
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 1
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    # Specified used define
+    $CCACHE_NVCC -DNUM=10 test1.cu
+    expect_stat "cache hit (preprocessed)" 1
+    expect_stat 'cache miss' 2
+    expect_stat 'files in cache' 2
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test2.dump test1.dump
+
+    $CCACHE_NVCC -DNUM=10 test1.cu
+    expect_stat 'cache hit (preprocessed)' 2
+    expect_stat 'cache miss' 2
+    expect_stat 'files in cache' 2
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test2.dump test1.dump
+
+    # -------------------------------------------------------------------------
+    TEST "option file"
+
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS -optf test1.optf -o reference_test1.o test1.cu
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS -optf test2.optf -o reference_test2.o test1.cu
+    $CUOBJDUMP reference_test1.o > reference_test1.dump
+    $CUOBJDUMP reference_test2.o > reference_test2.dump
+    expect_different_files reference_test1.dump reference_test2.dump
+
+    $CCACHE_NVCC -optf test1.optf test1.cu
+    expect_stat 'cache hit (preprocessed)' 0
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 1
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    $CCACHE_NVCC -optf test1.optf test1.cu
+    expect_stat 'cache hit (preprocessed)' 1
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 1
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    $CCACHE_NVCC -optf test2.optf test1.cu
+    expect_stat 'cache hit (preprocessed)' 1
+    expect_stat 'cache miss' 2
+    expect_stat 'files in cache' 2
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test2.dump test1.dump
+
+    $CCACHE_NVCC -optf test2.optf test1.cu
+    expect_stat 'cache hit (preprocessed)' 2
+    expect_stat 'cache miss' 2
+    expect_stat 'files in cache' 2
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test2.dump test1.dump
+}
+
+# =============================================================================
+
+SUITE_nvcc_PROBE() {
+    nvcc_PROBE
+}
+
+SUITE_nvcc_SETUP() {
+    nvcc_SETUP
+}
+
+SUITE_nvcc() {
+    nvcc_tests
+}
+
+# =============================================================================
+
+SUITE_nvcc_nocpp2_PROBE() {
+    nvcc_PROBE
+}
+
+SUITE_nvcc_nocpp2_SETUP() {
+    export CCACHE_NOCPP2=1
+    nvcc_SETUP
+}
+
+SUITE_nvcc_nocpp2() {
+    nvcc_tests
+}
+
+# =============================================================================
+
+SUITE_nvcc_direct_PROBE() {
+    nvcc_PROBE
+}
+
+SUITE_nvcc_direct_SETUP() {
+    unset CCACHE_NODIRECT
+
+    nvcc_SETUP
+}
+
+SUITE_nvcc_direct() {
+    # Reference file testing was not successfull due to different "fatbin" data.
+    # Another source of differences are the temporary files created by nvcc,
+    # that can be avoided by using the options '--keep --keep-dir ./keep'.
+    # So instead of comparing the binary object files, we compare the dumps of
+    # cuobjdump -all -elf -symbols -ptx -sass test1.o
+    NVCC_OPTS="-Wno-deprecated-gpu-targets -c"
+    NVCC_GPU1="--generate-code arch=compute_50,code=compute_50"
+    NVCC_GPU2="--generate-code arch=compute_52,code=sm_52"
+    CCACHE_NVCC="$CCACHE $NVCC_CMD $NVCC_OPTS"
+    CUOBJDUMP="cuobjdump -all -elf -symbols -ptx -sass"
+
+    # -------------------------------------------------------------------------
+    TEST "simple mode"
+
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS -o reference_test1.o test1.cu
+    $CUOBJDUMP reference_test1.o > reference_test1.dump
+
+    # First compile
+    $CCACHE_NVCC test1.cu
+    expect_stat 'cache hit (direct)' 0
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 2
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    $CCACHE_NVCC test1.cu
+    expect_stat 'cache hit (direct)' 1
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 2
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    # -------------------------------------------------------------------------
+    TEST "different GPU architectures"
+
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS            -o reference_test1.o test1.cu
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS $NVCC_GPU1 -o reference_test2.o test1.cu
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS $NVCC_GPU2 -o reference_test3.o test1.cu
+    $CUOBJDUMP reference_test1.o > reference_test1.dump
+    $CUOBJDUMP reference_test2.o > reference_test2.dump
+    $CUOBJDUMP reference_test3.o > reference_test3.dump
+    expect_different_files reference_test1.dump reference_test2.dump
+    expect_different_files reference_test1.dump reference_test3.dump
+    expect_different_files reference_test2.dump reference_test3.dump
+
+    $CCACHE_NVCC test1.cu
+    expect_stat 'cache hit (direct)' 0
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 2
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    # Other GPU
+    $CCACHE_NVCC $NVCC_GPU1 test1.cu
+    expect_stat 'cache hit (direct)' 0
+    expect_stat 'cache miss' 2
+    expect_stat 'files in cache' 4
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test2.dump test1.dump
+
+    $CCACHE_NVCC $NVCC_GPU1 test1.cu
+    expect_stat 'cache hit (direct)' 1
+    expect_stat 'cache miss' 2
+    expect_stat 'files in cache' 4
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test2.dump test1.dump
+
+    # Another GPU
+    $CCACHE_NVCC $NVCC_GPU2 test1.cu
+    expect_stat 'cache hit (direct)' 1
+    expect_stat 'cache miss' 3
+    expect_stat 'files in cache' 6
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test3.dump test1.dump
+
+    $CCACHE_NVCC $NVCC_GPU2 test1.cu
+    expect_stat 'cache hit (direct)' 2
+    expect_stat 'cache miss' 3
+    expect_stat 'files in cache' 6
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test3.dump test1.dump
+
+    # -------------------------------------------------------------------------
+    TEST "different defines"
+
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS            -o reference_test1.o test1.cu
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS -DNUM=10   -o reference_test2.o test1.cu
+    $CUOBJDUMP reference_test1.o > reference_test1.dump
+    $CUOBJDUMP reference_test2.o > reference_test2.dump
+    expect_different_files reference_test1.dump reference_test2.dump
+
+    $CCACHE_NVCC test1.cu
+    expect_stat 'cache hit (direct)' 0
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 2
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    # Specified define, but unused. Can only be found by preprocessed mode
+    $CCACHE_NVCC -DDUMMYENV=1 test1.cu
+    expect_stat "cache hit (preprocessed)" 1
+    expect_stat "cache hit (direct)" 0
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 3
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    # Specified used define
+    $CCACHE_NVCC -DNUM=10 test1.cu
+    expect_stat "cache hit (direct)" 0
+    expect_stat 'cache miss' 2
+    expect_stat 'files in cache' 5
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test2.dump test1.dump
+
+    $CCACHE_NVCC -DNUM=10 test1.cu
+    expect_stat 'cache hit (direct)' 1
+    expect_stat 'cache miss' 2
+    expect_stat 'files in cache' 5
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test2.dump test1.dump
+
+    # -------------------------------------------------------------------------
+    TEST "option file"
+
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS -optf test1.optf -o reference_test1.o test1.cu
+    CCACHE_DISABLE=1 $NVCC_CMD $NVCC_OPTS -optf test2.optf -o reference_test2.o test1.cu
+    $CUOBJDUMP reference_test1.o > reference_test1.dump
+    $CUOBJDUMP reference_test2.o > reference_test2.dump
+    expect_different_files reference_test1.dump reference_test2.dump
+
+    $CCACHE_NVCC -optf test1.optf test1.cu
+    expect_stat 'cache hit (direct)' 0
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 2
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    $CCACHE_NVCC -optf test1.optf test1.cu
+    expect_stat 'cache hit (direct)' 1
+    expect_stat 'cache miss' 1
+    expect_stat 'files in cache' 2
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test1.dump test1.dump
+
+    $CCACHE_NVCC -optf test2.optf test1.cu
+    expect_stat 'cache hit (direct)' 1
+    expect_stat 'cache miss' 2
+    expect_stat 'files in cache' 4
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test2.dump test1.dump
+
+    $CCACHE_NVCC -optf test2.optf test1.cu
+    expect_stat 'cache hit (direct)' 2
+    expect_stat 'cache miss' 2
+    expect_stat 'files in cache' 4
+    $CUOBJDUMP test1.o > test1.dump
+    expect_equal_files reference_test2.dump test1.dump
+}
+
+# =============================================================================
 # main program
 
 if pwd | grep '[^A-Za-z0-9/.,=_%+-]' >/dev/null 2>&1; then
@@ -3396,6 +3803,14 @@ funny characters in the name. Sorry.
 EOF
     exit 1
 fi
+
+# Remove common ccache directories on host from PATH variable
+HOST_CCACHE_DIRS="/usr/lib/ccache/bin
+/usr/lib/ccache"
+for HOST_CCACHE_DIR in $HOST_CCACHE_DIRS; do
+    PATH=$(echo -n $PATH | awk -v RS=: -v ORS=: '$0 != "'$HOST_CCACHE_DIR'"' | sed 's/:$//')
+done
+export PATH
 
 if [ -n "$CC" ]; then
     COMPILER="$CC"
@@ -3419,36 +3834,36 @@ HOST_OS_WINDOWS=false
 compiler_version="`$COMPILER --version 2>&1 | head -1`"
 case $compiler_version in
     *gcc*|*g++*|2.95*)
-        COMPILER_TYPE_GCC=true
-        ;;
+	COMPILER_TYPE_GCC=true
+	;;
     *clang*)
-        COMPILER_TYPE_CLANG=true
-        ;;
+	COMPILER_TYPE_CLANG=true
+	;;
     *)
-        echo "WARNING: Compiler $COMPILER not supported (version: $compiler_version) -- not running tests" >&2
-        exit 0
-        ;;
+	echo "WARNING: Compiler $COMPILER not supported (version: $compiler_version) -- not running tests" >&2
+	exit 0
+	;;
 esac
 
 case $compiler_version in
     *llvm*|*LLVM*)
-        COMPILER_USES_LLVM=true
-        ;;
+	COMPILER_USES_LLVM=true
+	;;
     *MINGW*|*mingw*)
-        COMPILER_USES_MINGW=true
-        ;;
+	COMPILER_USES_MINGW=true
+	;;
 esac
 
 case $(uname -s) in
     *MINGW*|*mingw*)
-        HOST_OS_WINDOWS=true
-        ;;
+	HOST_OS_WINDOWS=true
+	;;
     *Darwin*)
-        HOST_OS_APPLE=true
-        ;;
+	HOST_OS_APPLE=true
+	;;
     *Linux*)
-        HOST_OS_LINUX=true
-        ;;
+	HOST_OS_LINUX=true
+	;;
 esac
 
 if $HOST_OS_WINDOWS; then
@@ -3462,24 +3877,34 @@ if $HOST_OS_APPLE; then
     if [ "$XCODE_DEVELOPER_DIR" = "" ]; then
       XCODE_DEVELOPER_DIR=`xcode-select --print-path`
       if [ "$XCODE_DEVELOPER_DIR" = "" ]; then
-        echo "Error: XCODE_DEVELOPER_DIR environment variable not set and xcode-select path not set"
-        exit 1
+	echo "Error: XCODE_DEVELOPER_DIR environment variable not set and xcode-select path not set"
+	exit 1
       fi
     fi
 
     # Choose the latest SDK if an SDK root is not set
     MAC_PLATFORM_DIR=$XCODE_DEVELOPER_DIR/Platforms/MacOSX.platform
     if [ "$SDKROOT" = "" ]; then
-        SDKROOT="`eval ls -f -1 -d \"$MAC_PLATFORM_DIR/Developer/SDKs/\"*.sdk | tail -1`"
-        if [ "$SDKROOT" = "" ]; then
-            echo "Error: Cannot find a valid SDK root directory"
-            exit 1
-        fi
+	SDKROOT="`eval ls -f -1 -d \"$MAC_PLATFORM_DIR/Developer/SDKs/\"*.sdk | tail -1`"
+	if [ "$SDKROOT" = "" ]; then
+	    echo "Error: Cannot find a valid SDK root directory"
+	    exit 1
+	fi
     fi
 
     SYSROOT="-isysroot `echo \"$SDKROOT\" | sed 's/ /\\ /g'`"
 else
     SYSROOT=
+fi
+
+
+HAS_NVCC=false
+NVCC_CMD=$(which nvcc)
+
+if [ -n "$NVCC_CMD" ]; then
+    if [ -e $NVCC_CMD ]; then
+	HAS_NVCC=true
+    fi
 fi
 
 # ---------------------------------------
@@ -3493,6 +3918,9 @@ cd $TESTDIR || exit 1
 # ---------------------------------------
 
 all_suites="
+nvcc
+nvcc_direct
+nvcc_nocpp2
 base
 nocpp2
 multi_arch
@@ -3518,6 +3946,12 @@ else
     echo "Compiler:         $COMPILER ($compiler_location)"
 fi
 echo "Compiler version: $($COMPILER --version | head -n 1)"
+
+if $HAS_NVCC; then
+    echo "CUDA Compiler:    $($NVCC_CMD --version | tail -n 1) ($NVCC_CMD)"
+else
+    echo "CUDA Compiler:    not available"
+fi
 echo
 
 VERBOSE=false

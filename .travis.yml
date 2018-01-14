@@ -36,10 +36,10 @@ matrix:
           env: PATH="/usr/bin:$PATH" TEST=analyze
         - os: linux
           compiler: gcc
-          env: CUDA=8.0.61-1
+          env: CUDA=9.1.85-1
         - os: linux
           compiler: clang
-          env: CUDA=8.0.61-1
+          env: CUDA=9.1.85-1
 
     exclude:
         - os: osx

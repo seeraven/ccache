@@ -14,7 +14,6 @@ addons:
 
 os:
     - linux
-    - osx
 
 compiler:
     - clang
@@ -36,7 +35,7 @@ matrix:
           env: PATH="/usr/bin:$PATH" TEST=analyze
         - os: linux
           compiler: gcc
-          env: CUDA=8.0.61-1
+          env: CUDA=7.5-18
 
     exclude:
         - os: osx

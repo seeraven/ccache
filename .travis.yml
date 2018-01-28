@@ -15,6 +15,10 @@ addons:
 os:
     - linux
 
+compiler:
+    - clang
+    - gcc
+
 matrix:
     include:
         - os: linux

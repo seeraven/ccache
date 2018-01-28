@@ -19,6 +19,7 @@ if [ -n "$CUDA" ]; then
 	"5.5")
 	    CUDA_REPO=ubuntu1404
 	    CUDA_VERSION=5.5-54
+	    CUDA=5.5-power8
 	    ;;
 	"6.5")
 	    CUDA_REPO=ubuntu1404
@@ -59,17 +60,12 @@ if [ -n "$CUDA" ]; then
     travis_retry wget $CUDA_PKG_URL
     travis_retry sudo dpkg -i $CUDA_PKG_NAME
     travis_retry sudo apt-get update -qq
-    export CUDA_APT=${CUDA:0:3}
-    export CUDA_APT=${CUDA_APT/./-}
+    export CUDA_APT=${CUDA/./-}
 
-    if [ "$CUDA" == "5.5" ]; then
-	travis_retry sudo apt-get install -y cuda
-    else
-	travis_retry sudo apt-get install -y cuda-command-line-tools-${CUDA_APT}
-    fi
+    travis_retry sudo apt-get install -y cuda-command-line-tools-${CUDA_APT}
     travis_retry sudo apt-get clean
 
-    export CUDA_HOME=/usr/local/cuda-${CUDA:0:3}
+    export CUDA_HOME=/usr/local/cuda-${CUDA}
     export LD_LIBRARY_PATH=${CUDA_HOME}/nvvm/lib64:${LD_LIBRARY_PATH}
     export LD_LIBRARY_PATH=${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
     export PATH=${CUDA_HOME}/bin:${PATH}

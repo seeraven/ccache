@@ -23,9 +23,6 @@ matrix:
     include:
         - os: linux
           compiler: gcc
-          env: CUDA=5.5
-        - os: linux
-          compiler: gcc
           env: CUDA=6.5
         - os: linux
           compiler: gcc
@@ -41,6 +38,24 @@ matrix:
           env: CUDA=9.0
         - os: linux
           compiler: gcc
+          env: CUDA=9.1
+        - os: linux
+          compiler: clang
+          env: CUDA=6.5
+        - os: linux
+          compiler: clang
+          env: CUDA=7.0
+        - os: linux
+          compiler: clang
+          env: CUDA=7.5
+        - os: linux
+          compiler: clang
+          env: CUDA=8.0
+        - os: linux
+          compiler: clang
+          env: CUDA=9.0
+        - os: linux
+          compiler: clang
           env: CUDA=9.1
 
 before_install:

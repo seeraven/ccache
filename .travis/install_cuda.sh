@@ -47,7 +47,7 @@ if [ -n "$CUDA" ]; then
 	*)
 	    echo "Unsupported CUDA version $CUDA."
 	    exit 1
-    fi
+    esac
 
     echo "Installing CUDA support"
     if [ "$CUDA_REPO" == "ubuntu1604" ]; then

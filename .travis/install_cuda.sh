@@ -7,9 +7,22 @@
 #
 
 if [ -n "$CUDA" ]; then
+    if [ -z "$CUDA_REPO" ]; then
+       CUDA_REPO=trusty
+    fi
+
     echo "Installing CUDA support"
-    travis_retry wget http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1404/x86_64/cuda-repo-ubuntu1404_${CUDA}_amd64.deb
-    travis_retry sudo dpkg -i cuda-repo-ubuntu1404_${CUDA}_amd64.deb
+    if [ "$CUDA_REPO" == "xenial" ]; then
+	travis_retry sudo apt-key adv --fetch-keys http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/7fa2af80.pub
+	CUDA_PKG_NAME=cuda-repo-ubuntu1604_${CUDA}_amd64.deb
+	CUDA_PKG_URL=http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/${CUDA_PKG_NAME}
+    else
+	CUDA_PKG_NAME=cuda-repo-ubuntu1404_${CUDA}_amd64.deb
+	CUDA_PKG_URL=http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1404/x86_64/${CUDA_PKG_NAME}
+    fi
+
+    travis_retry wget $CUDA_PKG_URL
+    travis_retry sudo dpkg -i $CUDA_PKG_NAME
     travis_retry sudo apt-get update -qq
     export CUDA_APT=${CUDA:0:3}
     export CUDA_APT=${CUDA_APT/./-}

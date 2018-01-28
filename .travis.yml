@@ -14,7 +14,6 @@ addons:
 
 os:
     - linux
-    - osx
 
 compiler:
     - clang
@@ -22,21 +21,27 @@ compiler:
 
 matrix:
     include:
-#        - os: linux
-#          compiler: i586-mingw32msvc-gcc
-#          env: HOST="--host=i586-mingw32msvc" TEST="test/main.exe"
         - os: linux
-          compiler: clang
-          env: CFLAGS="-fsanitize=undefined" ASAN_OPTIONS="detect_leaks=0"
+          compiler: gcc
+          env: CUDA=5.5-54
         - os: linux
-          compiler: clang
-          env: CFLAGS="-fsanitize=address -g" ASAN_OPTIONS="detect_leaks=0"
+          compiler: gcc
+          env: CUDA=6.5-19
         - os: linux
-          compiler: clang
-          env: PATH="/usr/bin:$PATH" TEST=analyze
+          compiler: gcc
+          env: CUDA=7.0-28
+        - os: linux
+          compiler: gcc
+          env: CUDA=7.5-18
         - os: linux
           compiler: gcc
           env: CUDA=8.0.61-1
+        - os: linux
+          compiler: gcc
+          env: CUDA=9.0.176-1 CUDA_REPO=xenial
+        - os: linux
+          compiler: gcc
+          env: CUDA=9.1.85-1 CUDA_REPO=xenial
 
     exclude:
         - os: osx

@@ -62,7 +62,11 @@ if [ -n "$CUDA" ]; then
     export CUDA_APT=${CUDA:0:3}
     export CUDA_APT=${CUDA_APT/./-}
 
-    travis_retry sudo apt-get install -y cuda-command-line-tools-${CUDA_APT}
+    if [ "$CUDA" == "5.5" ]; then
+	travis_retry sudo apt-get install -y cuda
+    else
+	travis_retry sudo apt-get install -y cuda-command-line-tools-${CUDA_APT}
+    fi
     travis_retry sudo apt-get clean
 
     export CUDA_HOME=/usr/local/cuda-${CUDA:0:3}

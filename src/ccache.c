@@ -2143,7 +2143,7 @@ calculate_object_hash(struct args *args, struct hash *hash, int direct_mode)
 		hash_delimiter(hash, "/dev/null dependency file");
 	}
 
-	if (!found_ccbin && str_eq(actual_language, "cuda")) {
+	if (!found_ccbin && str_eq(actual_language, "cu")) {
 		hash_nvcc_host_compiler(hash, NULL, NULL);
 	}
 
